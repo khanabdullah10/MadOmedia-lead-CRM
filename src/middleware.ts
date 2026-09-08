@@ -5,7 +5,16 @@ import { AUTH_CONFIG } from "@/lib/auth";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get(AUTH_CONFIG.cookieName)?.value;
-  const isAuthenticated = sessionCookie === AUTH_CONFIG.sessionToken;
+  const authHeader = request.headers.get("authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : null;
+  const apiKeyHeader = request.headers.get("x-api-key");
+
+  const isAuthenticated =
+    sessionCookie === AUTH_CONFIG.sessionToken ||
+    bearerToken === AUTH_CONFIG.sessionToken ||
+    apiKeyHeader === AUTH_CONFIG.sessionToken;
 
   // Allow static files, Next.js internal files, favicon
   if (
@@ -25,8 +34,18 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // All other pages require authentication
+  // All other routes require authentication
   if (!isAuthenticated) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message:
+            "Provide a valid session cookie or Authorization Bearer header.",
+        },
+        { status: 401 }
+      );
+    }
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
   }

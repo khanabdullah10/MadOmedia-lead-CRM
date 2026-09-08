@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { PRIORITIES, PRIORITY_LABELS, SOURCES, SOURCE_LABELS } from "@/lib/constants";
 import type { Priority, Source } from "@/generated/prisma/enums";
 
@@ -23,13 +26,42 @@ export default function LeadForm({
   defaultValues?: Defaults;
   submitLabel: string;
 }) {
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const d = defaultValues ?? {};
   const followUpValue = d.nextFollowUp
     ? new Date(d.nextFollowUp).toISOString().slice(0, 10)
     : "";
 
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setIsPending(true);
+    try {
+      const formData = new FormData(e.currentTarget);
+      await action(formData);
+    } catch (err: any) {
+      if (
+        err?.message === "NEXT_REDIRECT" ||
+        err?.digest?.startsWith("NEXT_REDIRECT")
+      ) {
+        // Next.js redirection in progress
+        return;
+      }
+      console.error("Form submit error:", err);
+      setError(err?.message || "Failed to save lead. Please check details and try again.");
+      setIsPending(false);
+    }
+  }
+
   return (
-    <form action={action} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 animate-fade-in">
+          {error}
+        </div>
+      )}
       <div>
         <label className="block text-sm font-medium text-stone-700">Name *</label>
         <input
@@ -143,9 +175,32 @@ export default function LeadForm({
 
       <button
         type="submit"
-        className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-indigo-700/20 transition-all duration-150 hover:-translate-y-0.5 hover:bg-indigo-800 hover:shadow-md"
+        disabled={isPending}
+        className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-indigo-700/20 transition-all duration-150 hover:-translate-y-0.5 hover:bg-indigo-800 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:transform-none"
       >
-        {submitLabel}
+        {isPending && (
+          <svg
+            className="h-4 w-4 animate-spin text-white"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8H4z"
+            />
+          </svg>
+        )}
+        {isPending ? "Saving..." : submitLabel}
       </button>
     </form>
   );

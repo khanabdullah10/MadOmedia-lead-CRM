@@ -11,12 +11,26 @@ function str(formData: FormData, key: string): string | null {
   return v.trim();
 }
 
+function parseEstimatedValue(raw: string | null): number | null {
+  if (!raw) return null;
+  const clean = raw.replace(/[^0-9.-]/g, "");
+  if (!clean) return null;
+  const num = Number(clean);
+  return isNaN(num) ? null : num;
+}
+
+function parseDate(raw: string | null): Date | null {
+  if (!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export async function createLead(formData: FormData) {
   const name = str(formData, "name");
   if (!name) throw new Error("Name is required");
 
-  const estimatedValueRaw = str(formData, "estimatedValue");
-  const nextFollowUpRaw = str(formData, "nextFollowUp");
+  const estimatedValue = parseEstimatedValue(str(formData, "estimatedValue"));
+  const nextFollowUp = parseDate(str(formData, "nextFollowUp"));
 
   const lead = await db.lead.create({
     data: {
@@ -28,13 +42,22 @@ export async function createLead(formData: FormData) {
       interest: str(formData, "interest"),
       owner: str(formData, "owner"),
       priority: (str(formData, "priority") as Priority) ?? "MEDIUM",
-      estimatedValue: estimatedValueRaw ? Number(estimatedValueRaw) : null,
-      nextFollowUp: nextFollowUpRaw ? new Date(nextFollowUpRaw) : null,
-      activities: {
-        create: { note: "Lead created", stageTo: "NEW" },
-      },
+      estimatedValue,
+      nextFollowUp,
     },
   });
+
+  try {
+    await db.activity.create({
+      data: {
+        leadId: lead.id,
+        note: "Lead created",
+        stageTo: "NEW",
+      },
+    });
+  } catch (actErr) {
+    console.warn("Failed to create initial lead activity:", actErr);
+  }
 
   revalidatePath("/");
   revalidatePath("/pipeline");
@@ -46,8 +69,8 @@ export async function updateLead(id: string, formData: FormData) {
   const name = str(formData, "name");
   if (!name) throw new Error("Name is required");
 
-  const estimatedValueRaw = str(formData, "estimatedValue");
-  const nextFollowUpRaw = str(formData, "nextFollowUp");
+  const estimatedValue = parseEstimatedValue(str(formData, "estimatedValue"));
+  const nextFollowUp = parseDate(str(formData, "nextFollowUp"));
 
   await db.lead.update({
     where: { id },
@@ -60,8 +83,8 @@ export async function updateLead(id: string, formData: FormData) {
       interest: str(formData, "interest"),
       owner: str(formData, "owner"),
       priority: (str(formData, "priority") as Priority) ?? "MEDIUM",
-      estimatedValue: estimatedValueRaw ? Number(estimatedValueRaw) : null,
-      nextFollowUp: nextFollowUpRaw ? new Date(nextFollowUpRaw) : null,
+      estimatedValue,
+      nextFollowUp,
     },
   });
 
