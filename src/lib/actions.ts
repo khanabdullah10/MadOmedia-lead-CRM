@@ -117,7 +117,11 @@ export async function changeStage(id: string, formData: FormData) {
 
   const lostReason = str(formData, "lostReason");
 
-  const lead = await db.lead.findUniqueOrThrow({ where: { id } });
+  const lead = await db.lead.findUnique({ where: { id } });
+  if (!lead) {
+    console.warn(`[changeStage] Lead ${id} not found in database.`);
+    return;
+  }
 
   await db.lead.update({
     where: { id },
@@ -147,9 +151,19 @@ export async function addNote(id: string, formData: FormData) {
   const note = str(formData, "note");
   if (!note) return;
 
-  await db.activity.create({
-    data: { leadId: id, note },
-  });
+  const lead = await db.lead.findUnique({ where: { id } });
+  if (!lead) {
+    console.warn(`[addNote] Cannot add note: Lead ${id} not found in database.`);
+    return;
+  }
+
+  try {
+    await db.activity.create({
+      data: { leadId: id, note },
+    });
+  } catch (err) {
+    console.error("[addNote] Error creating activity:", err);
+  }
 
   revalidatePath(`/leads/${id}`);
   revalidatePath("/");
@@ -157,7 +171,14 @@ export async function addNote(id: string, formData: FormData) {
 }
 
 export async function deleteLead(id: string) {
-  await db.lead.delete({ where: { id } });
+  const lead = await db.lead.findUnique({ where: { id } });
+  if (lead) {
+    try {
+      await db.lead.delete({ where: { id } });
+    } catch (err) {
+      console.error("[deleteLead] Error deleting lead:", err);
+    }
+  }
   revalidatePath("/");
   revalidatePath("/pipeline");
   revalidatePath("/dashboard");

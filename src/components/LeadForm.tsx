@@ -28,6 +28,7 @@ export default function LeadForm({
 }) {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const d = defaultValues ?? {};
   const followUpValue = d.nextFollowUp
@@ -37,10 +38,14 @@ export default function LeadForm({
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     setIsPending(true);
     try {
       const formData = new FormData(e.currentTarget);
       await action(formData);
+      setIsPending(false);
+      setSuccess("Changes saved successfully!");
+      setTimeout(() => setSuccess(null), 4000);
     } catch (err: any) {
       if (
         err?.message === "NEXT_REDIRECT" ||
@@ -60,6 +65,11 @@ export default function LeadForm({
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 animate-fade-in">
           {error}
+        </div>
+      )}
+      {success && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-700 animate-fade-in">
+          ✓ {success}
         </div>
       )}
       <div>
