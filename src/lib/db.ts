@@ -7,23 +7,27 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-function getDatabaseConfig() {
-  const url = process.env.DATABASE_URL;
-  const authToken =
-    process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN;
+const TURSO_DATABASE_URL =
+  process.env.DATABASE_URL ||
+  "libsql://madomedia-khandevkhan.aws-ap-south-1.turso.io";
 
-  // If a remote cloud database URL is configured (e.g. Turso libsql://... or https://...)
+const TURSO_AUTH_TOKEN =
+  process.env.TURSO_AUTH_TOKEN ||
+  process.env.DATABASE_AUTH_TOKEN ||
+  "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODg4NjkxNDksImlkIjoiMDFhMDgwZTgtYmIwMS03MzAxLWE3YjktZTU4NGE4ZTRlNTYxIiwia2lkIjoiLWhYUDBLYldNVjZpaUNyUTAtRTdXOE42RmRucnYyOFhqUzFiVVo2ekRCSSIsInJpZCI6IjBlN2YwZDkxLTkxN2QtNDlmMC1iZjg1LTdlNThlZTE0ZTkzNyJ9.UIlHD_7Wpkx-HjpoQWkrWk9RtdWHgGX0EjKaJOOtqQeAxooQWzIRBkOPwqZRjW3aLFcKbVMXGRUZpK6weAXKAw";
+
+function getDatabaseConfig() {
+  // If remote cloud database (Turso) is configured
   if (
-    url &&
-    (url.startsWith("libsql://") ||
-      url.startsWith("https://") ||
-      url.startsWith("http://"))
+    TURSO_DATABASE_URL &&
+    (TURSO_DATABASE_URL.startsWith("libsql://") ||
+      TURSO_DATABASE_URL.startsWith("https://") ||
+      TURSO_DATABASE_URL.startsWith("http://"))
   ) {
-    return { url, authToken };
+    return { url: TURSO_DATABASE_URL, authToken: TURSO_AUTH_TOKEN };
   }
 
-  // On Vercel or AWS Lambda, the root filesystem is read-only.
-  // We copy dev.db to /tmp so SQLite has full read/write permissions.
+  // On Vercel or AWS Lambda fallback, copy dev.db to /tmp
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
     const tmpDbPath = path.join("/tmp", "dev.db");
     const sourceDbPath = path.join(process.cwd(), "dev.db");
@@ -42,7 +46,7 @@ function getDatabaseConfig() {
   }
 
   // Local development or persistent host (Hostinger, VPS, etc.)
-  const localUrl = url || `file:${path.join(process.cwd(), "dev.db")}`;
+  const localUrl = `file:${path.join(process.cwd(), "dev.db")}`;
   return { url: localUrl };
 }
 
