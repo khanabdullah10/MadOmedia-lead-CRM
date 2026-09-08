@@ -29,26 +29,19 @@ function getDatabaseConfig() {
     };
   }
 
-  // On Vercel, AWS Lambda, or production: Always connect to Turso Cloud!
-  if (
-    process.env.VERCEL ||
-    process.env.AWS_LAMBDA_FUNCTION_NAME ||
-    process.env.NODE_ENV === "production"
-  ) {
+  // On Vercel or AWS Lambda (serverless ephemeral disk): use Turso Cloud
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
     return {
       url: DEFAULT_TURSO_URL,
       authToken: process.env.TURSO_AUTH_TOKEN || DEFAULT_TURSO_TOKEN,
     };
   }
 
-  // Local development: use dev.db if exists, otherwise Turso
-  if (fs.existsSync(path.join(process.cwd(), "dev.db"))) {
-    return { url: `file:${path.join(process.cwd(), "dev.db")}` };
-  }
-
+  // On Hostinger, VPS, or local development:
+  // Use the real persistent dev.db file directly on the server's hard drive!
+  const localDbPath = path.join(process.cwd(), "dev.db");
   return {
-    url: DEFAULT_TURSO_URL,
-    authToken: DEFAULT_TURSO_TOKEN,
+    url: `file:${localDbPath}`,
   };
 }
 
