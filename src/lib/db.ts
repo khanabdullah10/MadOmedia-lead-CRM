@@ -7,47 +7,49 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-const TURSO_DATABASE_URL =
-  process.env.DATABASE_URL ||
+const DEFAULT_TURSO_URL =
   "libsql://madomedia-khandevkhan.aws-ap-south-1.turso.io";
 
-const TURSO_AUTH_TOKEN =
-  process.env.TURSO_AUTH_TOKEN ||
-  process.env.DATABASE_AUTH_TOKEN ||
+const DEFAULT_TURSO_TOKEN =
   "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODg4NjkxNDksImlkIjoiMDFhMDgwZTgtYmIwMS03MzAxLWE3YjktZTU4NGE4ZTRlNTYxIiwia2lkIjoiLWhYUDBLYldNVjZpaUNyUTAtRTdXOE42RmRucnYyOFhqUzFiVVo2ekRCSSIsInJpZCI6IjBlN2YwZDkxLTkxN2QtNDlmMC1iZjg1LTdlNThlZTE0ZTkzNyJ9.UIlHD_7Wpkx-HjpoQWkrWk9RtdWHgGX0EjKaJOOtqQeAxooQWzIRBkOPwqZRjW3aLFcKbVMXGRUZpK6weAXKAw";
 
 function getDatabaseConfig() {
-  // If remote cloud database (Turso) is configured
+  const envUrl = process.env.DATABASE_URL;
+
+  // If a custom cloud libSQL URL is provided in env, use it
   if (
-    TURSO_DATABASE_URL &&
-    (TURSO_DATABASE_URL.startsWith("libsql://") ||
-      TURSO_DATABASE_URL.startsWith("https://") ||
-      TURSO_DATABASE_URL.startsWith("http://"))
+    envUrl &&
+    (envUrl.startsWith("libsql://") ||
+      envUrl.startsWith("https://") ||
+      envUrl.startsWith("http://"))
   ) {
-    return { url: TURSO_DATABASE_URL, authToken: TURSO_AUTH_TOKEN };
+    return {
+      url: envUrl,
+      authToken: process.env.TURSO_AUTH_TOKEN || DEFAULT_TURSO_TOKEN,
+    };
   }
 
-  // On Vercel or AWS Lambda fallback, copy dev.db to /tmp
-  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    const tmpDbPath = path.join("/tmp", "dev.db");
-    const sourceDbPath = path.join(process.cwd(), "dev.db");
-
-    if (!fs.existsSync(tmpDbPath)) {
-      if (fs.existsSync(sourceDbPath)) {
-        try {
-          fs.copyFileSync(sourceDbPath, tmpDbPath);
-          fs.chmodSync(tmpDbPath, 0o666);
-        } catch (err) {
-          console.error("Failed to copy dev.db to /tmp:", err);
-        }
-      }
-    }
-    return { url: `file:${tmpDbPath}` };
+  // On Vercel, AWS Lambda, or production: Always connect to Turso Cloud!
+  if (
+    process.env.VERCEL ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.NODE_ENV === "production"
+  ) {
+    return {
+      url: DEFAULT_TURSO_URL,
+      authToken: process.env.TURSO_AUTH_TOKEN || DEFAULT_TURSO_TOKEN,
+    };
   }
 
-  // Local development or persistent host (Hostinger, VPS, etc.)
-  const localUrl = `file:${path.join(process.cwd(), "dev.db")}`;
-  return { url: localUrl };
+  // Local development: use dev.db if exists, otherwise Turso
+  if (fs.existsSync(path.join(process.cwd(), "dev.db"))) {
+    return { url: `file:${path.join(process.cwd(), "dev.db")}` };
+  }
+
+  return {
+    url: DEFAULT_TURSO_URL,
+    authToken: DEFAULT_TURSO_TOKEN,
+  };
 }
 
 const config = getDatabaseConfig();
