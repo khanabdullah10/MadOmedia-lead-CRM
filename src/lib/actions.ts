@@ -21,7 +21,17 @@ function parseEstimatedValue(raw: string | null): number | null {
 
 function parseDate(raw: string | null): Date | null {
   if (!raw) return null;
-  const d = new Date(raw);
+  const trimmed = raw.trim();
+  // Support DD/MM/YYYY or DD-MM-YYYY (e.g. 22/09/2026)
+  const dmyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (dmyMatch) {
+    const day = parseInt(dmyMatch[1], 10);
+    const month = parseInt(dmyMatch[2], 10) - 1;
+    const year = parseInt(dmyMatch[3], 10);
+    const d = new Date(year, month, day);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(trimmed);
   return isNaN(d.getTime()) ? null : d;
 }
 
@@ -71,6 +81,13 @@ export async function updateLead(id: string, formData: FormData) {
 
   const estimatedValue = parseEstimatedValue(str(formData, "estimatedValue"));
   const nextFollowUp = parseDate(str(formData, "nextFollowUp"));
+
+  const existing = await db.lead.findUnique({ where: { id } });
+  if (!existing) {
+    throw new Error(
+      "Lead record not found in the database. In serverless environments, SQLite resets across instances. Use Turso or a persistent server."
+    );
+  }
 
   await db.lead.update({
     where: { id },
