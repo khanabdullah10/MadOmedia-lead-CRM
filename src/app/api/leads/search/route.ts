@@ -12,6 +12,8 @@ export async function GET(request: NextRequest) {
     where: {
       OR: [
         { name: { contains: q } },
+        { companyName: { contains: q } },
+        { industry: { contains: q } },
         { phone: { contains: q } },
         { email: { contains: q } },
         { campaign: { contains: q } },

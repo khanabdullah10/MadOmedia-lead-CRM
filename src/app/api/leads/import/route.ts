@@ -96,12 +96,14 @@ export async function POST(request: NextRequest) {
     // Set up duplicate checking if requested
     let existingEmails = new Set<string>();
     let existingPhones = new Set<string>();
+    let existingNames = new Set<string>();
 
     if (skipDuplicates) {
       const existingLeads = await db.lead.findMany({
-        select: { email: true, phone: true },
+        select: { name: true, email: true, phone: true },
       });
       existingLeads.forEach((l) => {
+        if (l.name) existingNames.add(l.name.trim().toLowerCase());
         if (l.email) existingEmails.add(l.email.trim().toLowerCase());
         if (l.phone) {
           const digits = l.phone.replace(/[^0-9]/g, "");
@@ -112,8 +114,10 @@ export async function POST(request: NextRequest) {
 
     const seenInBatchEmails = new Set<string>();
     const seenInBatchPhones = new Set<string>();
+    const seenInBatchNames = new Set<string>();
 
     let importedCount = 0;
+    let updatedCount = 0;
     let skippedCount = 0;
     const errors: { row: number; reason: string }[] = [];
 
@@ -127,6 +131,7 @@ export async function POST(request: NextRequest) {
 
     for (const leadData of validRows) {
       const rowIdx = leadData.rawRowIndex || 0;
+      const cleanName = leadData.name.trim().toLowerCase();
       const cleanEmail = leadData.email ? leadData.email.trim().toLowerCase() : null;
       const phoneDigits = leadData.phone ? leadData.phone.replace(/[^0-9]/g, "") : null;
 
@@ -134,12 +139,43 @@ export async function POST(request: NextRequest) {
         let isDuplicate = false;
         if (cleanEmail && (existingEmails.has(cleanEmail) || seenInBatchEmails.has(cleanEmail))) {
           isDuplicate = true;
-        }
-        if (phoneDigits && (existingPhones.has(phoneDigits) || seenInBatchPhones.has(phoneDigits))) {
+        } else if (phoneDigits && (existingPhones.has(phoneDigits) || seenInBatchPhones.has(phoneDigits))) {
+          isDuplicate = true;
+        } else if (existingNames.has(cleanName) || seenInBatchNames.has(cleanName)) {
           isDuplicate = true;
         }
 
         if (isDuplicate) {
+          // If existing lead exists, enrich any missing company/industry/web fields
+          try {
+            const existingMatch = await db.lead.findFirst({
+              where: {
+                OR: [
+                  cleanEmail ? { email: cleanEmail } : undefined,
+                  leadData.phone ? { phone: leadData.phone } : undefined,
+                  { name: leadData.name },
+                ].filter(Boolean) as any,
+              },
+            });
+
+            if (existingMatch) {
+              await db.lead.update({
+                where: { id: existingMatch.id },
+                data: {
+                  companyName: existingMatch.companyName || leadData.companyName,
+                  industry: existingMatch.industry || leadData.industry,
+                  primaryDomain: existingMatch.primaryDomain || leadData.primaryDomain,
+                  websiteUrl: existingMatch.websiteUrl || leadData.websiteUrl,
+                  instagramUrl: existingMatch.instagramUrl || leadData.instagramUrl,
+                  facebookUrl: existingMatch.facebookUrl || leadData.facebookUrl,
+                },
+              });
+              updatedCount++;
+            }
+          } catch (updateErr) {
+            console.warn("Could not enrich existing lead:", updateErr);
+          }
+
           skippedCount++;
           continue;
         }
@@ -159,12 +195,19 @@ export async function POST(request: NextRequest) {
             priority: leadData.priority,
             stage: leadData.stage,
             lostReason: leadData.lostReason,
+            companyName: leadData.companyName,
+            industry: leadData.industry,
+            primaryDomain: leadData.primaryDomain,
+            websiteUrl: leadData.websiteUrl,
+            instagramUrl: leadData.instagramUrl,
+            facebookUrl: leadData.facebookUrl,
             nextFollowUp: leadData.nextFollowUp,
             createdAt: leadData.createdAt,
           },
         });
 
         // Track in current batch
+        seenInBatchNames.add(cleanName);
         if (cleanEmail) seenInBatchEmails.add(cleanEmail);
         if (phoneDigits) seenInBatchPhones.add(phoneDigits);
 
@@ -192,14 +235,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const message = importedCount > 0
+      ? `Successfully imported ${importedCount} leads${updatedCount > 0 ? ` and enriched ${updatedCount} existing leads` : ""}.`
+      : updatedCount > 0
+      ? `Enriched ${updatedCount} existing leads with company, industry, and link details.`
+      : `All ${skippedCount} duplicate leads were already up to date.`;
+
     return NextResponse.json({
       success: true,
-      message: `Successfully imported ${importedCount} leads${skippedCount > 0 ? ` (${skippedCount} duplicates skipped)` : ""}.`,
+      message,
       totalRows: parsedRows.length,
       importedCount,
+      updatedCount,
       skippedCount,
       failedCount: errors.length,
-      errors: errors.slice(0, 20), // return up to 20 errors for user visibility
+      errors: errors.slice(0, 20),
     });
   } catch (error: any) {
     console.error("[API POST /api/leads/import] Unexpected error:", error);

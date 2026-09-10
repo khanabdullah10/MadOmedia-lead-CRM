@@ -50,6 +50,12 @@ export async function POST(request: NextRequest) {
       owner,
       priority,
       nextFollowUp,
+      companyName,
+      industry,
+      primaryDomain,
+      websiteUrl,
+      instagramUrl,
+      facebookUrl,
     } = body;
 
     if (!name || typeof name !== "string" || !name.trim()) {
@@ -95,6 +101,12 @@ export async function POST(request: NextRequest) {
         interest: interest ? String(interest).trim() : null,
         owner: owner ? String(owner).trim() : null,
         priority: cleanPriority,
+        companyName: companyName ? String(companyName).trim() : null,
+        industry: industry ? String(industry).trim() : null,
+        primaryDomain: primaryDomain ? String(primaryDomain).trim() : null,
+        websiteUrl: websiteUrl ? String(websiteUrl).trim() : null,
+        instagramUrl: instagramUrl ? String(instagramUrl).trim() : null,
+        facebookUrl: facebookUrl ? String(facebookUrl).trim() : null,
         estimatedValue: parsedEstimatedValue,
         nextFollowUp: parsedNextFollowUp,
       },

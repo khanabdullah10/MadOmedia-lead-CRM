@@ -13,6 +13,7 @@ import { Source, Stage } from "@/generated/prisma/enums";
 import StageSelect from "@/components/StageSelect";
 import JourneyStepper from "@/components/JourneyStepper";
 import { CheckIcon, XIcon } from "@/components/icons";
+import { formatClickableUrl } from "@/lib/leadImport";
 
 function maxFunnelIndex(
   activities: { stageTo: Stage | null }[],
@@ -287,23 +288,75 @@ export default async function PipelinePage({
                         )}
                       </div>
 
-                      <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-stone-500">
-                        <span className="truncate">
-                          {SOURCE_LABELS[lead.source]}
-                        </span>
-                        {lead.owner && (
-                          <>
-                            <span aria-hidden className="text-stone-300">
-                              ·
+                      {(lead.companyName || lead.industry) && (
+                        <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-stone-600 truncate">
+                          {lead.companyName && (
+                            <span className="truncate font-medium">🏢 {lead.companyName}</span>
+                          )}
+                          {lead.industry && (
+                            <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.2 text-[9px] font-semibold text-amber-800 uppercase tracking-wide">
+                              {lead.industry}
                             </span>
-                            <span
-                              title={lead.owner}
-                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[8.5px] font-bold ${avatarStyle(lead.owner)}`}
+                          )}
+                        </div>
+                      )}
+
+                      <div className="mt-1.5 flex items-center justify-between gap-1.5 text-[11px] text-stone-500">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="truncate">
+                            {SOURCE_LABELS[lead.source]}
+                          </span>
+                          {lead.owner && (
+                            <>
+                              <span aria-hidden className="text-stone-300">
+                                ·
+                              </span>
+                              <span
+                                title={lead.owner}
+                                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[8.5px] font-bold ${avatarStyle(lead.owner)}`}
+                              >
+                                {initials(lead.owner)}
+                              </span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Quick Action Links */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {lead.websiteUrl && (
+                            <a
+                              href={formatClickableUrl(lead.websiteUrl) || "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Open Website"
+                              className="text-stone-400 hover:text-indigo-600 transition-colors text-xs"
                             >
-                              {initials(lead.owner)}
-                            </span>
-                          </>
-                        )}
+                              🌐
+                            </a>
+                          )}
+                          {lead.instagramUrl && (
+                            <a
+                              href={formatClickableUrl(lead.instagramUrl) || "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Open Instagram Profile"
+                              className="text-stone-400 hover:text-pink-600 transition-colors text-xs"
+                            >
+                              📸
+                            </a>
+                          )}
+                          {lead.facebookUrl && (
+                            <a
+                              href={formatClickableUrl(lead.facebookUrl) || "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Open Facebook Page"
+                              className="text-stone-400 hover:text-blue-600 transition-colors text-xs"
+                            >
+                              📘
+                            </a>
+                          )}
+                        </div>
                       </div>
 
                       <div className="mt-3">
@@ -336,9 +389,11 @@ export default async function PipelinePage({
             <thead className="bg-stone-50 text-left text-stone-500">
               <tr>
                 <th className="px-4 py-2.5 font-medium">Name</th>
+                <th className="px-4 py-2.5 font-medium">Company / Industry</th>
                 <th className="px-4 py-2.5 font-medium">Source</th>
                 <th className="px-4 py-2.5 font-medium">Stage</th>
                 <th className="px-4 py-2.5 font-medium">Priority</th>
+                <th className="px-4 py-2.5 font-medium">Links</th>
                 <th className="px-4 py-2.5 font-medium">Owner</th>
                 <th className="px-4 py-2.5 font-medium">Value</th>
                 <th className="px-4 py-2.5 font-medium">Next Follow-up</th>
@@ -359,6 +414,14 @@ export default async function PipelinePage({
                     </Link>
                   </td>
                   <td className="px-4 py-2.5 text-stone-600">
+                    <div>{lead.companyName ?? "—"}</div>
+                    {lead.industry && (
+                      <span className="inline-block rounded bg-amber-50 px-1.5 py-0.2 text-[10px] font-semibold text-amber-800 uppercase tracking-wide">
+                        {lead.industry}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 text-stone-600">
                     {SOURCE_LABELS[lead.source]}
                   </td>
                   <td className="px-4 py-2.5 text-stone-600">
@@ -366,6 +429,57 @@ export default async function PipelinePage({
                   </td>
                   <td className="px-4 py-2.5 text-stone-600">
                     {PRIORITY_LABELS[lead.priority]}
+                  </td>
+                  <td className="px-4 py-2.5 text-stone-600">
+                    <div className="flex items-center gap-2">
+                      {lead.websiteUrl && (
+                        <a
+                          href={formatClickableUrl(lead.websiteUrl) || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open Website"
+                          className="text-stone-400 hover:text-indigo-600 transition-colors text-xs"
+                        >
+                          🌐
+                        </a>
+                      )}
+                      {lead.primaryDomain && !lead.websiteUrl && (
+                        <a
+                          href={formatClickableUrl(lead.primaryDomain) || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open Domain"
+                          className="text-stone-400 hover:text-indigo-600 transition-colors text-xs"
+                        >
+                          🔗
+                        </a>
+                      )}
+                      {lead.instagramUrl && (
+                        <a
+                          href={formatClickableUrl(lead.instagramUrl) || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open Instagram Profile"
+                          className="text-stone-400 hover:text-pink-600 transition-colors text-xs"
+                        >
+                          📸
+                        </a>
+                      )}
+                      {lead.facebookUrl && (
+                        <a
+                          href={formatClickableUrl(lead.facebookUrl) || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open Facebook Page"
+                          className="text-stone-400 hover:text-blue-600 transition-colors text-xs"
+                        >
+                          📘
+                        </a>
+                      )}
+                      {!lead.websiteUrl && !lead.primaryDomain && !lead.instagramUrl && !lead.facebookUrl && (
+                        <span className="text-stone-300">—</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-2.5 text-stone-600">
                     {lead.owner ?? "—"}

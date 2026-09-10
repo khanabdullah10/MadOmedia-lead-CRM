@@ -50,6 +50,12 @@ model Lead {
   priority      Priority   @default(MEDIUM)
   stage         Stage      @default(NEW)
   lostReason    String?
+  companyName   String?
+  industry      String?
+  primaryDomain String?
+  websiteUrl    String?
+  instagramUrl  String?
+  facebookUrl   String?
   nextFollowUp  DateTime?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt

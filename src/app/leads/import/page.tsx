@@ -1,9 +1,9 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useRef, ChangeEvent, DragEvent } from "react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
-import { parseLeadRow, ParsedLeadRow } from "@/lib/leadImport";
+import { parseLeadRow, ParsedLeadRow, formatClickableUrl } from "@/lib/leadImport";
 import { SOURCE_LABELS, STAGE_LABELS, PRIORITY_LABELS } from "@/lib/constants";
 
 export default function ImportLeadsPage() {
@@ -357,13 +357,14 @@ export default function ImportLeadsPage() {
                       <tr>
                         <th className="py-2.5 px-3">Row</th>
                         <th className="py-2.5 px-3">Name</th>
+                        <th className="py-2.5 px-3">Company / Industry</th>
                         <th className="py-2.5 px-3">Contact</th>
+                        <th className="py-2.5 px-3">Web & Social</th>
                         <th className="py-2.5 px-3">Source</th>
                         <th className="py-2.5 px-3">Stage</th>
                         <th className="py-2.5 px-3">Priority</th>
                         <th className="py-2.5 px-3">Est. Value</th>
                         <th className="py-2.5 px-3">Created At</th>
-                        <th className="py-2.5 px-3">Follow Up</th>
                         <th className="py-2.5 px-3">Status</th>
                       </tr>
                     </thead>
@@ -374,9 +375,68 @@ export default function ImportLeadsPage() {
                           <td className="py-2.5 px-3 font-medium text-stone-900">
                             {row.name || <span className="italic text-rose-500">Missing Name</span>}
                           </td>
+                          <td className="py-2.5 px-3 text-stone-600">
+                            <div>{row.companyName || "—"}</div>
+                            {row.industry && (
+                              <span className="inline-block rounded bg-amber-50 px-1.5 py-0.2 text-[10px] font-semibold text-amber-800 uppercase tracking-wide">
+                                {row.industry}
+                              </span>
+                            )}
+                          </td>
                           <td className="py-2.5 px-3 text-stone-500">
                             <div>{row.phone || "—"}</div>
                             {row.email && <div className="text-[11px] text-stone-400">{row.email}</div>}
+                          </td>
+                          <td className="py-2.5 px-3 text-stone-600">
+                            <div className="flex items-center gap-1.5">
+                              {row.websiteUrl && (
+                                <a
+                                  href={formatClickableUrl(row.websiteUrl) || "#"}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={`Website: ${row.websiteUrl}`}
+                                  className="text-stone-400 hover:text-indigo-600 transition-colors text-xs"
+                                >
+                                  🌐
+                                </a>
+                              )}
+                              {row.primaryDomain && !row.websiteUrl && (
+                                <a
+                                  href={formatClickableUrl(row.primaryDomain) || "#"}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={`Domain: ${row.primaryDomain}`}
+                                  className="text-stone-400 hover:text-indigo-600 transition-colors text-xs"
+                                >
+                                  🔗
+                                </a>
+                              )}
+                              {row.instagramUrl && (
+                                <a
+                                  href={formatClickableUrl(row.instagramUrl) || "#"}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={`Instagram: ${row.instagramUrl}`}
+                                  className="text-stone-400 hover:text-pink-600 transition-colors text-xs"
+                                >
+                                  📸
+                                </a>
+                              )}
+                              {row.facebookUrl && (
+                                <a
+                                  href={formatClickableUrl(row.facebookUrl) || "#"}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={`Facebook: ${row.facebookUrl}`}
+                                  className="text-stone-400 hover:text-blue-600 transition-colors text-xs"
+                                >
+                                  📘
+                                </a>
+                              )}
+                              {!row.websiteUrl && !row.primaryDomain && !row.instagramUrl && !row.facebookUrl && (
+                                <span className="text-stone-300">—</span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-2.5 px-3">
                             <span className="inline-flex items-center rounded-md bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-700">
@@ -404,9 +464,6 @@ export default function ImportLeadsPage() {
                           </td>
                           <td className="py-2.5 px-3 text-stone-500">
                             {row.createdAt.toISOString().slice(0, 10)}
-                          </td>
-                          <td className="py-2.5 px-3 text-stone-500">
-                            {row.nextFollowUp ? row.nextFollowUp.toISOString().slice(0, 10) : "—"}
                           </td>
                           <td className="py-2.5 px-3">
                             {row.isValid ? (

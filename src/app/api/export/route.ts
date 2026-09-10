@@ -13,8 +13,14 @@ export async function GET() {
 
   const header = [
     "Name",
+    "Company Name",
+    "Industry",
     "Phone",
     "Email",
+    "Primary Domain",
+    "Website Url",
+    "Instagram URL",
+    "Facebook Url",
     "Source",
     "Campaign",
     "Interest",
@@ -30,8 +36,14 @@ export async function GET() {
   const rows = leads.map((lead) =>
     [
       lead.name,
+      lead.companyName ?? "",
+      lead.industry ?? "",
       lead.phone ?? "",
       lead.email ?? "",
+      lead.primaryDomain ?? "",
+      lead.websiteUrl ?? "",
+      lead.instagramUrl ?? "",
+      lead.facebookUrl ?? "",
       SOURCE_LABELS[lead.source],
       lead.campaign ?? "",
       lead.interest ?? "",

@@ -12,6 +12,12 @@ export interface ParsedLeadRow {
   priority: Priority;
   stage: Stage;
   lostReason: string | null;
+  companyName: string | null;
+  industry: string | null;
+  primaryDomain: string | null;
+  websiteUrl: string | null;
+  instagramUrl: string | null;
+  facebookUrl: string | null;
   nextFollowUp: Date | null;
   createdAt: Date;
   isValid: boolean;
@@ -32,7 +38,6 @@ export function parseDate(val: any): Date | null {
 
   // If numeric (Excel serial date number)
   if (typeof val === "number" && !isNaN(val)) {
-    // Excel epoch starts at 1900-01-01 (serial 1), with 25569 days between 1900 and 1970
     const epochMs = (val - 25569) * 86400 * 1000;
     const d = new Date(epochMs);
     return isNaN(d.getTime()) ? null : d;
@@ -58,23 +63,19 @@ export function parseDate(val: any): Date | null {
     let p2 = parseInt(slashParts[1], 10);
     let p3 = parseInt(slashParts[2], 10);
 
-    // Expand 2-digit year (e.g., 26 -> 2026)
     if (p3 < 100) p3 += 2000;
 
-    // Check if M/D/YYYY (where p1 is month, p2 is day)
     if (p1 > 0 && p1 <= 12 && p2 > 0 && p2 <= 31 && p3 >= 1970) {
       const d = new Date(Date.UTC(p3, p1 - 1, p2, 12, 0, 0));
       if (!isNaN(d.getTime())) return d;
     }
 
-    // Check if D/M/YYYY (where p1 is day > 12)
     if (p1 > 12 && p1 <= 31 && p2 > 0 && p2 <= 12 && p3 >= 1970) {
       const d = new Date(Date.UTC(p3, p2 - 1, p1, 12, 0, 0));
       if (!isNaN(d.getTime())) return d;
     }
   }
 
-  // 3. Fallback to standard ISO / full datetime parse
   const standardDate = new Date(str);
   if (!isNaN(standardDate.getTime())) {
     return standardDate;
@@ -158,11 +159,24 @@ function getMatchingFieldValue(row: Record<string, any>, aliases: string[]): any
 }
 
 /**
+ * Formats URL strings to ensure they have http:// or https:// when opened in a browser.
+ */
+export function formatClickableUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
+/**
  * Converts a raw spreadsheet row into a validated, normalized Lead object.
  */
 export function parseLeadRow(rawRow: Record<string, any>, rowIndex?: number): ParsedLeadRow {
-  const nameRaw = getMatchingFieldValue(rawRow, ["Name", "Lead Name", "Full Name", "Contact Name"]);
-  const phoneRaw = getMatchingFieldValue(rawRow, ["Phone", "Phone Number", "Mobile", "Contact", "Cell"]);
+  const nameRaw = getMatchingFieldValue(rawRow, ["Name", "Lead Name", "Full Name", "Contact Name", "Contact"]);
+  const phoneRaw = getMatchingFieldValue(rawRow, ["Phone", "Phone Number", "Mobile", "Contact Number", "Cell", "Telephone"]);
   const emailRaw = getMatchingFieldValue(rawRow, ["Email", "Email Address", "Mail"]);
   const sourceRaw = getMatchingFieldValue(rawRow, ["Source", "Lead Source", "Channel"]);
   const campaignRaw = getMatchingFieldValue(rawRow, ["Campaign", "Utm Campaign", "Campaign Name"]);
@@ -174,6 +188,14 @@ export function parseLeadRow(rawRow: Record<string, any>, rowIndex?: number): Pa
   const lostReasonRaw = getMatchingFieldValue(rawRow, ["Lost Reason", "Reason Lost", "Drop Reason"]);
   const nextFollowUpRaw = getMatchingFieldValue(rawRow, ["Next Follow Up", "Follow Up Date", "Follow Up", "Next Step Date"]);
   const createdAtRaw = getMatchingFieldValue(rawRow, ["Created At", "Created Date", "Date Added", "Import Date", "Timestamp"]);
+
+  // Business and Web Presence Fields
+  const companyRaw = getMatchingFieldValue(rawRow, ["Company Name", "Company", "Organization", "Account Name", "Business Name"]);
+  const industryRaw = getMatchingFieldValue(rawRow, ["Industry", "Sector", "Category", "Vertical", "Business Type"]);
+  const primaryDomainRaw = getMatchingFieldValue(rawRow, ["Primary Domain", "Domain", "Domain Name", "PrimaryDomain"]);
+  const websiteUrlRaw = getMatchingFieldValue(rawRow, ["Website Url", "Website", "Site", "Web URL", "URL", "WebsiteUrl"]);
+  const instagramUrlRaw = getMatchingFieldValue(rawRow, ["Instagram URL", "Instagram", "Insta", "IG", "Twitter URL", "Twitter", "X URL", "Social URL"]);
+  const facebookUrlRaw = getMatchingFieldValue(rawRow, ["Facebook Url", "Facebook", "FB", "FB URL", "FacebookUrl"]);
 
   const name = nameRaw !== undefined && nameRaw !== null ? String(nameRaw).trim() : "";
 
@@ -190,6 +212,12 @@ export function parseLeadRow(rawRow: Record<string, any>, rowIndex?: number): Pa
       priority: "MEDIUM",
       stage: "NEW",
       lostReason: null,
+      companyName: null,
+      industry: null,
+      primaryDomain: null,
+      websiteUrl: null,
+      instagramUrl: null,
+      facebookUrl: null,
       nextFollowUp: null,
       createdAt: new Date(),
       isValid: false,
@@ -204,6 +232,13 @@ export function parseLeadRow(rawRow: Record<string, any>, rowIndex?: number): Pa
   const interest = interestRaw !== undefined && interestRaw !== null ? String(interestRaw).trim() : null;
   const owner = ownerRaw !== undefined && ownerRaw !== null ? String(ownerRaw).trim() : null;
   const lostReason = lostReasonRaw !== undefined && lostReasonRaw !== null ? String(lostReasonRaw).trim() : null;
+
+  const companyName = companyRaw !== undefined && companyRaw !== null ? String(companyRaw).trim() : null;
+  const industry = industryRaw !== undefined && industryRaw !== null ? String(industryRaw).trim() : null;
+  const primaryDomain = primaryDomainRaw !== undefined && primaryDomainRaw !== null ? String(primaryDomainRaw).trim() : null;
+  const websiteUrl = websiteUrlRaw !== undefined && websiteUrlRaw !== null ? String(websiteUrlRaw).trim() : null;
+  const instagramUrl = instagramUrlRaw !== undefined && instagramUrlRaw !== null ? String(instagramUrlRaw).trim() : null;
+  const facebookUrl = facebookUrlRaw !== undefined && facebookUrlRaw !== null ? String(facebookUrlRaw).trim() : null;
 
   const source = normalizeSource(sourceRaw);
   const stage = normalizeStage(stageRaw);
@@ -226,6 +261,12 @@ export function parseLeadRow(rawRow: Record<string, any>, rowIndex?: number): Pa
     priority,
     stage,
     lostReason: stage === "LOST" ? lostReason : (lostReason || null),
+    companyName: companyName || null,
+    industry: industry || null,
+    primaryDomain: primaryDomain || null,
+    websiteUrl: websiteUrl || null,
+    instagramUrl: instagramUrl || null,
+    facebookUrl: facebookUrl || null,
     nextFollowUp,
     createdAt,
     isValid: true,
