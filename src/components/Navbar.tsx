@@ -64,6 +64,32 @@ export default function Navbar() {
               );
             })}
 
+            {/* Import Leads Link */}
+            <Link
+              href="/leads/import"
+              title="Import leads from Excel or CSV"
+              className={`group flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors duration-150 ${
+                pathname === "/leads/import"
+                  ? "bg-stone-100 text-stone-900 font-semibold"
+                  : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
+              }`}
+            >
+              <svg
+                className="h-4 w-4 text-stone-400 group-hover:text-stone-600 transition-colors"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12"
+                />
+              </svg>
+              <span>Import</span>
+            </Link>
+
             {/* Direct Native Export CSV Link (Fixes previous router interception) */}
             <a
               href="/api/export"
